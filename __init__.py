@@ -214,16 +214,6 @@ filmic_mc = read_filmic(path + "Medium Contrast")
 filmic_mlc = read_filmic(path + "Medium Low Contrast")
 filmic_lc = read_filmic(path + "Low Contrast")
 filmic_vlc = read_filmic(path + "Very Low Contrast")
-handle = ()
-
-
-def enable_auto_exposure(self, context):
-    ae = context.scene.camera_settings.enable_ae
-    if ae:
-        global handle
-        handle = bpy.types.SpaceView3D.draw_handler_add(auto_exposure, (), 'WINDOW', 'PRE_VIEW')
-    else:
-        bpy.types.SpaceView3D.draw_handler_remove(handle, 'WINDOW')
 
 
 def auto_exposure():
@@ -352,6 +342,37 @@ def rgb_to_luminance(buf):
     return lum
 
 
+class AUTOEXP_ae_toggle:
+    bl_idname = "autoexp.toggle_ae"
+    bl_label = "Enable AE"
+    bl_description = "Enable Auto Exposure draw handler"
+
+    _handle = None
+
+    @staticmethod
+    def add_handler():
+        if AUTOEXP_ae_toggle._handle is None:
+            AUTOEXP_ae_toggle._handle = bpy.types.SpaceView3D.draw_handler_add(
+                auto_exposure,
+                (),
+                'WINDOW',
+                'PRE_VIEW')
+
+    @staticmethod
+    def remove_handler():
+        if AUTOEXP_ae_toggle._handle is not None:
+            bpy.types.SpaceView3D.draw_handler_remove(
+                AUTOEXP_ae_toggle._handle,
+                'WINDOW')
+            AUTOEXP_ae_toggle._handle = None
+
+def enable_auto_exposure(self, context):
+    ae = context.scene.camera_settings.enable_ae
+    if ae:
+        AUTOEXP_ae_toggle.add_handler()
+    else:
+        AUTOEXP_ae_toggle.remove_handler()
+
 class CameraSettings(PropertyGroup):
     # Enable
     enabled : BoolProperty(
@@ -475,8 +496,9 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.camera_settings
-    if handle is not None:
-        bpy.types.SpaceView3D.draw_handler_remove(handle, 'WINDOW')
+
+    # Remove draw handler if it exists
+    AUTOEXP_ae_toggle.remove_handler()
 
 
 if __name__ == "__main__":
